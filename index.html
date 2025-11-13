@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Bot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container { max-width: 500px; }
+        .card { border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .pairing-code { 
+            font-family: 'Courier New', monospace; 
+            font-size: 3rem; 
+            font-weight: bold;
+            letter-spacing: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header bg-primary text-white text-center py-3">
+                <h3 class="mb-1">WhatsApp Bot</h3>
+                <p class="mb-0">Deployed on Render</p>
+            </div>
+            <div class="card-body p-4">
+                <!-- Step 1: Input Form -->
+                <div id="step1">
+                    <form id="pairForm">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">WhatsApp Number</label>
+                            <input type="tel" class="form-control form-control-lg" 
+                                   id="number" placeholder="252612345678" required>
+                            <div class="form-text">Country code + number (no + sign)</div>
+                        </div>
+                        
+                        <div id="errorAlert" class="alert alert-danger d-none">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <span id="errorText"></span>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary btn-lg w-100 py-3" id="pairBtn">
+                            <i class="fas fa-key me-2"></i>Get Pairing Code
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Step 2: Pairing Code -->
+                <div id="step2" class="d-none">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Use this code in WhatsApp
+                    </div>
+                    
+                    <div class="text-center bg-dark text-white p-4 rounded-3 mb-3">
+                        <div class="pairing-code" id="pairingCodeDisplay">------</div>
+                    </div>
+                    
+                    <div class="bg-light p-3 rounded-3 mb-3">
+                        <h6 class="fw-semibold mb-3">Steps to Pair:</h6>
+                        <ol class="mb-0">
+                            <li class="mb-2">Open WhatsApp → Settings → Linked Devices</li>
+                            <li class="mb-2">Tap "Link a Device"</li>
+                            <li class="mb-2">Select "Link with Phone Number"</li>
+                            <li>Enter the code above</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="text-center text-muted mb-3">
+                        <div class="spinner-border spinner-border-sm me-2"></div>
+                        Waiting for connection...
+                    </div>
+                    
+                    <button class="btn btn-secondary w-100" onclick="resetForm()">
+                        <i class="fas fa-arrow-left me-2"></i>Try Another Number
+                    </button>
+                </div>
+
+                <!-- Step 3: Success -->
+                <div id="step3" class="d-none text-center">
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle fa-2x mb-3"></i>
+                        <h4>Connected Successfully! 🎉</h4>
+                        <p class="mb-0">Your WhatsApp bot is now active</p>
+                    </div>
+                    
+                    <div class="bg-light p-3 rounded-3 mb-3">
+                        <h6>Try these commands:</h6>
+                        <div class="row text-center">
+                            <div class="col-6 mb-2"><code>.ping</code></div>
+                            <div class="col-6 mb-2"><code>.tagall</code></div>
+                            <div class="col-6 mb-2"><code>.antilink</code></div>
+                            <div class="col-6 mb-2"><code>.help</code></div>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-success w-100" onclick="resetForm()">
+                        <i class="fas fa-plus me-2"></i>Pair Another Bot
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <script>
+        // Use relative paths for API calls
+        const API_BASE = '';
+        let statusCheckInterval;
+
+        document.getElementById('pairForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const number = document.getElementById('number').value;
+            const pairBtn = document.getElementById('pairBtn');
+            
+            if (!number) {
+                showError('Please enter a phone number');
+                return;
+            }
+
+            pairBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Getting Code...';
+            pairBtn.disabled = true;
+            hideError();
+
+            try {
+                console.log('Sending request for number:', number);
+                
+                const response = await fetch('/pair', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ number: number })
+                });
+
+                console.log('Response status:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Response data:', data);
+                
+                if (data.success) {
+                    showPairingCode(data.pairingCode, data.number);
+                } else {
+                    throw new Error(data.error || 'Failed to get pairing code');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Error: ' + error.message);
+            } finally {
+                pairBtn.innerHTML = '<i class="fas fa-key me-2"></i>Get Pairing Code';
+                pairBtn.disabled = false;
+            }
+        });
+
+        function showPairingCode(code, number) {
+            document.getElementById('step1').classList.add('d-none');
+            document.getElementById('step2').classList.remove('d-none');
+            document.getElementById('pairingCodeDisplay').textContent = code;
+            
+            // Start checking connection status
+            checkConnectionStatus(number);
+        }
+
+        function checkConnectionStatus(number) {
+            statusCheckInterval = setInterval(async () => {
+                try {
+                    const response = await fetch('/status/' + number);
+                    const data = await response.json();
+                    
+                    if (data.status === 'online') {
+                        clearInterval(statusCheckInterval);
+                        showSuccess();
+                    }
+                } catch (error) {
+                    console.log('Status check error:', error);
+                }
+            }, 2000);
+
+            // Stop checking after 2 minutes
+            setTimeout(() => {
+                if (statusCheckInterval) clearInterval(statusCheckInterval);
+            }, 120000);
+        }
+
+        function showSuccess() {
+            document.getElementById('step2').classList.add('d-none');
+            document.getElementById('step3').classList.remove('d-none');
+        }
+
+        function showError(message) {
+            const errorAlert = document.getElementById('errorAlert');
+            const errorText = document.getElementById('errorText');
+            errorText.textContent = message;
+            errorAlert.classList.remove('d-none');
+        }
+
+        function hideError() {
+            document.getElementById('errorAlert').classList.add('d-none');
+        }
+
+        function resetForm() {
+            if (statusCheckInterval) clearInterval(statusCheckInterval);
+            document.getElementById('step1').classList.remove('d-none');
+            document.getElementById('step2').classList.add('d-none');
+            document.getElementById('step3').classList.add('d-none');
+            document.getElementById('number').value = '';
+            hideError();
+        }
+    </script>
+</body>
+</html>
