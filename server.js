@@ -1,5 +1,5 @@
 import express from 'express';
-import makeWASocket, { useMultiFileAuthState, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
+import { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 
 const app = express();
 app.use(express.json());
@@ -136,11 +136,12 @@ app.post('/pair', async (req, res) => {
     const { state, saveCreds } = await useMultiFileAuthState(`sessions_${cleanNumber}`);
     const { version } = await fetchLatestBaileysVersion();
     
+    // ✅ CORRECT FUNCTION NAME: makeWASocket (not makeWASocket)
     const sock = makeWASocket({
       version,
       auth: state,
       printQRInTerminal: false,
-      logger: { level: 'silent' } // Reduce logs
+      logger: { level: 'silent' }
     });
 
     let pairingCodeSent = false;
@@ -170,7 +171,7 @@ app.post('/pair', async (req, res) => {
         // Send welcome message
         const jid = `${cleanNumber}@s.whatsapp.net`;
         sock.sendMessage(jid, { 
-          text: '✅ *Bot Connected!*\\n\\nSend .ping to test or .help for commands.' 
+          text: '✅ *Bot Connected!*\n\nSend .ping to test or .help for commands.' 
         }).catch(console.log);
       }
       
@@ -198,14 +199,14 @@ app.post('/pair', async (req, res) => {
         }
         else if (text === '.help') {
           await sock.sendMessage(jid, { 
-            text: '🤖 *Bot Commands*\\n.ping - Test bot\\n.help - Show this help' 
+            text: '🤖 *Bot Commands*\n.ping - Test bot\n.help - Show this help' 
           });
         }
         else if (text.startsWith('.tagall')) {
           try {
             const groupInfo = await sock.groupMetadata(jid);
             let mentions = [];
-            let tagText = '👋 Hello everyone!\\n\\n';
+            let tagText = '👋 Hello everyone!\n\n';
             
             groupInfo.participants.forEach(participant => {
               mentions.push(participant.id);
